@@ -1,15 +1,15 @@
 import { mkdirSync, readFileSync, renameSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import type { HsbColor } from "../shared/colors.ts";
-import type { HatchSound } from "./rest-controls.ts";
+import type { PlaybackMemory, HatchSound } from "./rest-controls.ts";
 
-interface ReceiverState {
+interface ReceiverState extends PlaybackMemory {
   receiverNames?: Record<string, string>;
   restSounds?: HatchSound[];
   restColor?: HsbColor;
 }
 
-// Only UI preferences are persisted here; never account credentials or device state.
+// Only UI preferences and playback settings are persisted; never account credentials.
 export class ReceiverStateStore {
   private readonly directory: string;
   constructor(storagePath: string) {
@@ -37,6 +37,7 @@ export class ReceiverStateStore {
       receiverNames: { ...state.receiverNames },
       restSounds: state.restSounds,
       restColor: state.restColor,
+      lastPlayback: state.lastPlayback,
     };
   }
 

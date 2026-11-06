@@ -13,6 +13,8 @@ import {
   lightOn,
   lightHsb,
   volumeChange,
+  playbackSnapshot,
+  type PlaybackMemory,
 } from "../src/devices/rest-controls.ts";
 import type { RestIotState } from "../src/shared/hatch-sleep-types.ts";
 import type { RestIot } from "../src/devices/rest-iot.ts";
@@ -154,6 +156,112 @@ describe("Rest 2 controls", () => {
       current: { playing: "none", step: 0, srId: 0, paused: false },
     });
   });
+  it("restores sound, volume and light after power off, including across a restart", async () => {
+    const { device, subject, update } = mockDevice();
+    const memory: PlaybackMemory = {};
+    const save = vi.fn();
+    const controls = new RestControls(device, [ocean], memory, save);
+    const playing = state();
+    playing.current.playing = "remote";
+    playing.current.sound = {
+      ...playing.current.sound,
+      id: ocean.id,
+      url: ocean.url,
+      mute: false,
+      v: raw(40),
+    };
+    playing.current.color = {
+      ...playing.current.color,
+      id: 9999,
+      g: 65535,
+      i: raw(30),
+    };
+    subject.next(playing);
+    await controls.setPower(false);
+    expect(save).toHaveBeenCalled();
+    subject.next(state()); // The device clears its current sound on shutdown.
+    const restarted = new RestControls(
+      device,
+      [ocean],
+      JSON.parse(JSON.stringify(memory)),
+    );
+    await restarted.setPower(true);
+    expect(update).toHaveBeenLastCalledWith({
+      current: {
+        playing: "remote",
+        step: 1,
+        srId: 0,
+        paused: false,
+        ...playbackSnapshot(playing),
+      },
+    });
+    expect(device.fetchRoutines).not.toHaveBeenCalled();
+  });
+  it("restores light-only use without unmuting, and repeated off does not erase memory", async () => {
+    const { device, subject, update } = mockDevice();
+    const controls = new RestControls(device, [ocean]);
+    const playing = state();
+    playing.current.playing = "remote";
+    playing.current.sound = {
+      ...playing.current.sound,
+      id: ocean.id,
+      url: ocean.url,
+      mute: true,
+    };
+    playing.current.color = {
+      ...playing.current.color,
+      id: 9999,
+      r: 65535,
+      i: raw(10),
+    };
+    subject.next(playing);
+    await controls.setPower(false);
+    subject.next(state());
+    await controls.setPower(false);
+    await controls.setVolume(20); // Off-device volume changes should still take effect on resume.
+    await controls.setPower(true);
+    expect(update).toHaveBeenLastCalledWith({
+      current: {
+        playing: "remote",
+        step: 1,
+        srId: 0,
+        paused: false,
+        color: playbackSnapshot(playing).color,
+        sound: { ...playbackSnapshot(playing).sound, v: raw(20), mute: true },
+      },
+    });
+  });
+  it("remembers externally observed playback and does not replace it with an offline snapshot", async () => {
+    const { device, subject, update } = mockDevice();
+    const controls = new RestControls(device, [ocean]);
+    const playing = state();
+    playing.current.playing = "routine";
+    playing.current.sound = {
+      ...playing.current.sound,
+      id: ocean.id,
+      url: ocean.url,
+    };
+    subject.next(playing);
+    subject.next({
+      ...playing,
+      connected: false,
+      current: {
+        ...playing.current,
+        sound: { ...playing.current.sound, v: 0 },
+      },
+    });
+    subject.next(state());
+    await controls.setPower(true);
+    expect(update).toHaveBeenLastCalledWith({
+      current: {
+        playing: "remote",
+        step: 1,
+        srId: 0,
+        paused: false,
+        ...playbackSnapshot(playing),
+      },
+    });
+  });
   it("reports failed commands to the HomeKit caller", async () => {
     const { controls, update } = mockDevice();
     update.mockRejectedValueOnce(new Error("Not authorized"));
@@ -227,6 +335,11 @@ describe("Rest 2 controls", () => {
     ).toHaveLength(0);
     const tv = accessory.getService(hap.Service.Television);
     expect(tv.isPrimaryService).toBe(true);
+    expect(
+      accessory
+        .getServiceById(hap.Service.InputSource, "input:0")
+        .getCharacteristic(hap.Characteristic.ConfiguredName).value,
+    ).toBe("No Sound");
     const input = tv.getCharacteristic(hap.Characteristic.ActiveIdentifier);
     await input.handleSetRequest(ocean.id);
     expect(update).toHaveBeenLastCalledWith(trackChange(ocean));
@@ -262,9 +375,9 @@ describe("Rest 2 controls", () => {
       tv.getCharacteristic(hap.Characteristic.DisplayOrder).value,
       "base64",
     );
-    expect(order.readUInt32LE(2)).toBe(0);
-    expect(order.readUInt32LE(10)).toBe(ocean.id);
-    expect(order.readUInt32LE(18)).toBe(rain.id);
+    expect(order.readUInt32LE(2)).toBe(ocean.id);
+    expect(order.readUInt32LE(10)).toBe(rain.id);
+    expect(order.readUInt32LE(18)).toBe(0);
   });
   it("supports receiver volume controls without resetting sound or light", async () => {
     const { device, update } = mockDevice();

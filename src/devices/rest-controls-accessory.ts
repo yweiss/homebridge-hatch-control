@@ -38,7 +38,12 @@ export class RestControlsAccessory extends BaseAccessory {
   ) {
     super(device, accessory);
     this.saveNames = saveNames;
-    this.controls = new RestControls(device, sounds);
+    this.controls = new RestControls(
+      device,
+      sounds,
+      accessory.context,
+      saveNames,
+    );
     const { Service, Characteristic } = hap;
     const prefix = accessory.displayName
       .replace(/[^\p{L}\p{N} ']/gu, " ")
@@ -160,7 +165,7 @@ export class RestControlsAccessory extends BaseAccessory {
         else await this.controls.setTrack(id, true);
       },
     );
-    const inputs = [{ id: 0, name: "Off / Other" }, ...sounds];
+    const inputs = [...sounds, { id: 0, name: "No Sound" }];
     for (const sound of inputs) {
       const input = accessory.addService(
         Service.InputSource,
@@ -259,7 +264,12 @@ export class RestControlsAccessory extends BaseAccessory {
     const characteristic = service.getCharacteristic(C.ConfiguredName);
     const generic = (name: string) =>
       key.startsWith("input:") && /^input(?: source)?(?: \d+)?$/i.test(name);
-    if (names[key] && generic(names[key])) delete names[key];
+    if (
+      names[key] &&
+      (generic(names[key]) ||
+        (key === "input:0" && names[key] === "Off / Other"))
+    )
+      delete names[key];
     const getName = () => names[key] || defaultName;
     characteristic.updateValue(getName());
     characteristic.onGet(getName);

@@ -12,6 +12,26 @@ describe("receiver preference migration", () => {
       const legacy = {
         receiverNames: { "input:1": "Waves" },
         restSounds: [],
+        lastPlayback: {
+          sound: {
+            id: 19998,
+            url: "https://example.com/silence.wav",
+            v: 100,
+            mute: true,
+            duration: 0,
+            until: "indefinite",
+          },
+          color: {
+            id: 9999,
+            r: 0,
+            g: 0,
+            b: 0,
+            w: 65535,
+            i: 100,
+            duration: 0,
+            until: "indefinite" as const,
+          },
+        },
         password: "synthetic-secret",
       };
       const migrated = store.load("abc-123", legacy);

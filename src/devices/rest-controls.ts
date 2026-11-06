@@ -143,12 +143,68 @@ export function colorChange(
   };
 }
 
+export interface PlaybackMemory {
+  lastPlayback?: Pick<RestIotState["current"], "sound" | "color">;
+}
+
+// Save only playback fields, never account or device-identifying state.
+export function playbackSnapshot(
+  state: RestIotState,
+): NonNullable<PlaybackMemory["lastPlayback"]> {
+  const { sound, color, paused } = state.current;
+  return {
+    sound: {
+      id: sound.id,
+      url: sound.url,
+      v: sound.v,
+      mute: sound.mute || paused,
+      until: "indefinite",
+      duration: 0,
+    },
+    color: {
+      id: color.id,
+      r: color.r,
+      g: color.g,
+      b: color.b,
+      w: color.w,
+      i: color.i,
+      until: "indefinite",
+      duration: 0,
+    },
+  };
+}
+
 export class RestControls {
   readonly device: RestIot;
   readonly sounds: HatchSound[];
-  constructor(device: RestIot, sounds: HatchSound[]) {
+  private readonly memory: PlaybackMemory;
+  private readonly saveMemory: () => void;
+  private saveTimer?: NodeJS.Timeout;
+  constructor(
+    device: RestIot,
+    sounds: HatchSound[],
+    memory: PlaybackMemory = {},
+    saveMemory: () => void = () => {},
+  ) {
     this.device = device;
     this.sounds = sounds;
+    this.memory = memory;
+    this.saveMemory = saveMemory;
+    device.onState.subscribe((state) => {
+      if (state.connected === false || state.current.playing === "none") return;
+      const playback = playbackSnapshot(state);
+      if (JSON.stringify(playback) === JSON.stringify(this.memory.lastPlayback))
+        return;
+      this.memory.lastPlayback = playback;
+      if (this.saveTimer) clearTimeout(this.saveTimer);
+      this.saveTimer = setTimeout(() => this.persistMemory(), 300);
+      this.saveTimer.unref();
+    });
+  }
+  private persistMemory() {
+    if (this.saveTimer) clearTimeout(this.saveTimer);
+    this.saveTimer = undefined;
+    this.saveMemory();
   }
   async state() {
     const state = await firstValueFrom(this.device.onState.pipe(timeout(8000)));
@@ -157,12 +213,28 @@ export class RestControls {
   }
   async setVolume(value: number) {
     const change = volumeChange(value);
-    await this.state();
+    const state = await this.state();
     await this.device.update(change);
+    if (state.current.playing === "none" && this.memory.lastPlayback) {
+      this.memory.lastPlayback.sound.v = raw(value);
+      this.persistMemory();
+    }
   }
   async setPower(on: boolean) {
     const state = await this.state();
-    if (on && state.current.playing === "none") {
+    if (on && state.current.playing === "none" && this.memory.lastPlayback) {
+      const playback = this.memory.lastPlayback;
+      await this.device.update({
+        current: {
+          playing: "remote",
+          step: 1,
+          srId: 0,
+          paused: false,
+          sound: { ...playback.sound },
+          color: { ...playback.color },
+        },
+      });
+    } else if (on && state.current.playing === "none") {
       const routines = await this.device.fetchRoutines();
       if (!routines.length)
         throw new Error("Create a favorite routine in the Hatch app first");
@@ -176,10 +248,14 @@ export class RestControls {
       });
     } else if (on && state.current.paused)
       await this.device.update({ current: { paused: false } });
-    else if (!on)
+    else if (!on) {
+      if (state.current.playing !== "none")
+        this.memory.lastPlayback = playbackSnapshot(state);
+      this.persistMemory();
       await this.device.update({
         current: { playing: "none", step: 0, srId: 0, paused: false },
       });
+    }
   }
   async setSound(on: boolean) {
     const state = await this.state();

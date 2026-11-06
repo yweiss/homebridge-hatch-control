@@ -6,7 +6,7 @@ Authored and maintained by **Yoav Weiss**. Built on [Dusty Greif’s Hatch integ
 
 This independent, unofficial Homebridge plugin brings full controls to **Hatch Rest 2nd Gen**. It uses a receiver accessory so sounds appear in a single-choice input menu, together with volume and light controls. It is not affiliated with Hatch or Apple.
 
-**Release status:** Version 0.2.0 is prepared for release. npm publication and Homebridge verification are pending. Older GitHub releases use the previous switch interface. A verified badge is awarded by Homebridge after review; this project does not currently claim verification.
+**Release status:** Version 0.2.1 is prepared for release. npm publication and Homebridge verification are pending. Older GitHub releases use the previous switch interface. A verified badge is awarded by Homebridge after review; this project does not currently claim verification.
 
 ## Contents
 
@@ -29,7 +29,7 @@ The following applies to Rest 2nd Gen and the implemented Rest+ 2nd Gen interfac
 
 | Control | Behavior |
 | --- | --- |
-| Main power | Turns the device off, resumes paused playback, or starts the first available touch-ring favorite routine. Configure a favorite in the Hatch app first. |
+| Main power | Turns the device off and restores the last sound, volume, mute, color and brightness settings when turned back on. If nothing has been remembered yet, starts the first available touch-ring favorite routine. |
 | Sound selection | Selects one basic sound by its actual name using the receiver’s input menu. Selecting a sound enters manual playback and preserves volume and light settings. |
 | Sound mute | Mutes audio without turning off the light. The volume control’s on/off toggle enables or mutes sound. |
 | Volume | Sets audio volume from 0 to 100%. Adjusting it preserves the chosen sound and light; changing volume while the device is off does not start playback. |
@@ -41,7 +41,9 @@ The following applies to Rest 2nd Gen and the implemented Rest+ 2nd Gen interfac
 
 The basic catalog is discovered from Hatch. On the tested Rest 2 it includes **White Noise, Ocean, Rain, Birds, Wind, Water, Dryer, Heartbeat, Fan and Thunderstorm**. Availability can vary; the plugin does not unlock paid content.
 
-The input **Off / Other** represents muted audio, no sound, or a sound outside the exposed catalog. Choosing it mutes audio while leaving the light alone. Only one sound input can be active at a time.
+Power remembers the last active settings, including light-only use with muted audio, and keeps that memory across Homebridge restarts. Restoring uses manual playback; it does not resume a routine’s timer or advance through its steps. Existing Hatch schedules still run independently.
+
+The input **No Sound**, placed last in the sound menu, represents muted audio, no sound, or a sound outside the exposed catalog. Choosing it mutes audio while leaving the light alone. Only one sound input can be active at a time.
 
 ### What stays in the Hatch app
 
@@ -89,7 +91,7 @@ Please check the generation in your Hatch app before installing. A shared produc
 - The email and password for the Hatch account that owns or can access it.
 - Internet access from Homebridge to Hatch and its AWS IoT service.
 - Homebridge **1.8+ or 2.x** and Node.js **22.12+, 24.x or 26.x**.
-- At least one touch-ring favorite configured in Hatch if you want main power to start a routine.
+- A touch-ring favorite in Hatch for the initial power-on fallback, before the plugin has observed any active playback.
 - Apple Home for pairing and control. Remote access and Home automations additionally depend on your Apple Home hub setup.
 
 Automated release checks cover Node 22, 24 and 26 with Homebridge 2.5. Physical testing currently covers Rest 2nd Gen only.
@@ -156,7 +158,7 @@ Existing receiver-preview installations retain their pairing identity when upgra
 | `name` | No | Homebridge default | Label for the platform in Homebridge logs/settings; not a device-name override. |
 | `email` | Yes | — | Your Hatch login email. |
 | `password` | Yes | — | Your Hatch login password. |
-| `soundIds` | No | All basic catalog sounds | Array of numeric Hatch sound IDs to include in the receiver picker. `[]` leaves only Off / Other. Does not enable additional content. |
+| `soundIds` | No | All basic catalog sounds | Array of numeric Hatch sound IDs to include in the receiver picker. `[]` leaves only No Sound. Does not enable additional content. |
 | `debug` | No | `false` | Upstream diagnostic detail, particularly for unsupported devices. Diagnostics may contain private device information; keep them local or redact before sharing. |
 
 Example limiting the catalog to Ocean and Rain on the tested Rest 2:
@@ -213,11 +215,11 @@ Upgrading this plugin from the old switch layout removes that legacy tile. Exist
 | Plugin is absent from search | npm publication must be complete first; Homebridge search may take time to refresh its index. |
 | No supported devices found | Confirm that the same account can see the device in Hatch, and check its exact model/generation against the table above. |
 | Login fails / HTTP 401 or 403 | Verify the login in Hatch and plugin settings. An error from the old volume add-on’s endpoint does not prove this plugin will fail; ensure the log belongs to Hatch Rest Control. Repeated failures can also reflect Hatch API changes or service restrictions. Do not post credentials in an issue. |
-| Main power does not start playback | Create a touch-ring favorite in Hatch and confirm it works there. Main power uses the first available favorite, rather than choosing a particular named sound. |
+| Main power does not start playback | If no previous playback has been remembered yet, create a touch-ring favorite in Hatch and confirm it works there. Once playback is observed, main power restores those sound/light settings in manual mode. |
 | Receiver does not appear in Home | Check that Homebridge and the phone can discover one another on the network, inspect startup logs, and look under Add Accessory → More Options. Pair the external receiver separately from its child bridge. |
 | Duplicate Hatch tiles | Check for another Hatch plugin still running. On an upgrade, inspect logs to confirm removal of the former switch accessory. Do not remove your working receiver while diagnosing another tile. |
 | Volume looks like a fan | Expected: this service supplies Apple Home’s percentage slider. It changes audio volume. |
-| Sound menu only shows Off / Other | Check whether `soundIds` is empty or contains IDs missing from the catalog. If catalog loading failed and no cache exists yet, restore cloud connectivity and restart. |
+| Sound menu only shows No Sound | Check whether `soundIds` is empty or contains IDs missing from the catalog. If catalog loading failed and no cache exists yet, restore cloud connectivity and restart. |
 | Sound catalog temporarily unavailable | Previously cached sound names are reused; power, volume and light controls remain available when the device connection is working. |
 | Inputs have generic names | Restart with the current plugin version and reopen accessory details. The plugin supplies catalog names and rejects generic pairing placeholders while preserving custom names. |
 | Home says No Response | Check Hatch app connectivity, internet access and Homebridge logs. Offline writes fail instead of being reported as successful. |
@@ -232,7 +234,7 @@ For an issue, include the plugin, Homebridge and Node versions; Hatch model; wha
 
 Credentials remain in your Homebridge configuration and are sent to Hatch for authentication. Device communication uses Hatch’s services and AWS IoT. The plugin has no analytics service or developer-operated server.
 
-Custom input names, cached catalog entries and the last light color chosen through this plugin are stored inside `<Homebridge storage>/hatch-rest-control/`. These local preferences may contain names you assigned at home; they are not included in the npm package. Include that folder in private Homebridge backups if you want to preserve aliases.
+Custom input names, cached catalog entries, remembered sound/volume/mute/color/brightness settings and the last light color chosen through this plugin are stored inside `<Homebridge storage>/hatch-rest-control/`. These local preferences may contain names you assigned at home; they are not included in the npm package. Include that folder in private Homebridge backups if you want to preserve aliases.
 
 Never publish your configuration, passwords, session tokens, pairing code or unredacted device details. Debug logs should be treated as private. The repository’s examples use fictional names and placeholder credentials.
 

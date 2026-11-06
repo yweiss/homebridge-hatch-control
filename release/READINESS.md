@@ -1,3 +1,5 @@
+Latest update: 0.2.1 adds remembered playback and No Sound. The 0.2.0 checksum and validation below are historical; rebuild and re-audit 0.2.1 before publication. Publishing remains paused.
+
 # Release readiness — 0.2.0
 
 Prepared locally. Publication remains on hold; no verification request has been sent.

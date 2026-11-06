@@ -1,5 +1,12 @@
 # Changelog
 
+## 0.2.1
+
+- Main power restores the last sound, volume, mute, color and brightness settings in manual mode, with memory retained across restarts.
+- Preserves silent/light-only use and remembers externally observed playback.
+- Renamed the silent input to No Sound and placed it last in the menu.
+- Added regression tests for power cycling, restart persistence, offline snapshots and volume changes while off.
+
 ## 0.2.0
 
 - Replaced Rest 2 sound switches with a separately paired audio receiver and single-choice named sound picker.
