@@ -1,4 +1,4 @@
-Latest update: 0.2.1 adds remembered playback and No Sound. The 0.2.0 checksum and validation below are historical; rebuild and re-audit 0.2.1 before publication. Publishing remains paused.
+Latest update: 0.2.1 adds remembered playback and No Sound last in the picker. Its 39 tests and build pass locally. The package was installed on the test Homebridge host and restart requested. Final power-cycle behavior awaits user testing. SHA-256: `df07b8556b26f35a0f095494d0aa23e39cbff8c29f7af8270ffb862a4a34f46b`. The 0.2.0 checksum and validation below are historical. Publishing remains paused.
 
 # Release readiness — 0.2.0
 
