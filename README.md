@@ -6,7 +6,7 @@ Authored and maintained by **Yoav Weiss**. Built on [Dusty Greif’s Hatch integ
 
 This independent, unofficial Homebridge plugin provides model-specific receivers for **Hatch Rest, Rest+ and Rest Mini**, plus routine receivers for **Restore and Hatch Baby**. Full hardware validation currently covers Rest 2nd Gen. It uses a receiver accessory so sounds appear in a single-choice input menu, together with volume and light controls. It is not affiliated with Hatch or Apple.
 
-**Release status:** Version 0.3.0 introduces receivers for Rest+, Rest Mini and Restore routines. Homebridge verification is pending. Older GitHub releases use the previous switch interface. A verified badge is awarded by Homebridge after review; this project does not currently claim verification.
+**Release status:** Version 0.3.0 introduces receivers for Rest+, Rest Mini and Restore routines. [Homebridge verification has been requested](https://github.com/homebridge/plugins/issues/1335) and is pending review. Older GitHub releases use the previous switch interface. A verified badge is awarded by Homebridge after review; this project does not currently claim verification.
 
 ## Contents
 

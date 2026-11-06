@@ -1,6 +1,6 @@
 # Verification Request: homebridge-hatch-control
 
-Draft only — submit after version 0.3.0 is published to npm and the matching GitHub release is live.
+Submitted as https://github.com/homebridge/plugins/issues/1335 after npm and GitHub publication. This preparation record documents the review scope; the linked issue is the actual submission.
 
 ## Basic details
 
@@ -8,7 +8,7 @@ Plugin Name: homebridge-hatch-control
 
 Link To GitHub Repo: https://github.com/yweiss/homebridge-hatch-control
 
-npm package: https://www.npmjs.com/package/homebridge-hatch-control (pending publication)
+npm package: https://www.npmjs.com/package/homebridge-hatch-control
 
 Plugin Icon: none submitted; use the default until a separate licensed icon is available.
 
@@ -33,14 +33,12 @@ The receiver exposes native speaker volume/mute and remote volume controls. A fa
 
 Credits: Dusty Greif, Scott MacWatters and Brian Via. MIT copyright notices remain in LICENSE and NOTICE.md.
 
-## Before submission
+## Release evidence
 
-- Publish version 0.3.0 to npm; verify registry metadata and clean installation.
-- Push the release commit and create the matching GitHub release with notes.
-- Confirm final public CI is green and issues remain enabled.
-- Replace pending statements and attach the exact public release/CI links.
-- Submit through the Homebridge verification issue form. Approval is Homebridge’s decision; no badge should be claimed in advance.
+- npm: https://www.npmjs.com/package/homebridge-hatch-control
+- GitHub release: https://github.com/yweiss/homebridge-hatch-control/releases/tag/v0.3.0
+- Passing CI: https://github.com/yweiss/homebridge-hatch-control/actions/runs/42286865433
+- Clean public registry installation and registration smoke test passed; integrity matches the audited tarball.
+- Verification request: https://github.com/homebridge/plugins/issues/1335
 
-Requirements checked: https://github.com/homebridge/plugins/wiki/Verified-Plugins
-
-Form: https://github.com/homebridge/plugins/issues/new?template=1_verification-request.yml
+Requirements: https://github.com/homebridge/plugins/wiki/Verified-Plugins
