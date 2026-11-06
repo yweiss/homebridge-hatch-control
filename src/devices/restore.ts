@@ -17,7 +17,7 @@ export class Restore extends IotDevice<RestoreState> implements BaseDevice {
     playing: RestoreState['content']['playing'],
     step: number,
   ) {
-    this.update({
+    return this.update({
       content: {
         playing,
         paused: false,
@@ -28,10 +28,10 @@ export class Restore extends IotDevice<RestoreState> implements BaseDevice {
   }
 
   turnOnRoutine(step = 1) {
-    this.setContent('routine', step)
+    return this.setContent('routine', step)
   }
 
   turnOff() {
-    this.setContent('none', 0)
+    return this.setContent('none', 0)
   }
 }

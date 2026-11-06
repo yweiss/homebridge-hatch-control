@@ -98,7 +98,7 @@ describe("platform release migration", () => {
       ).toEqual(cached.context.receiverNames);
       expect(api.registerPlatformAccessories).not.toHaveBeenCalled();
       expect(api.unregisterPlatformAccessories).toHaveBeenCalledWith(
-        "homebridge-hatch-rest-control",
+        "homebridge-hatch-control",
         "HatchRestControl",
         [cached],
       );

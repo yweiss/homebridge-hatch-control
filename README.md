@@ -1,12 +1,12 @@
-# Hatch Rest Control
+# Hatch Control
 
-**One Apple Home accessory for your Hatch Rest’s power, sounds, volume and light.**
+**One Apple Home receiver per Hatch device, with the controls its model supports.**
 
 Authored and maintained by **Yoav Weiss**. Built on [Dusty Greif’s Hatch integration](https://github.com/dgreif/homebridge-hatch-baby-rest), with credit to [Scott MacWatters’ volume add-on](https://github.com/ScottMacWatters/homebridge-hatch-baby-rest-volume).
 
-This independent, unofficial Homebridge plugin brings full controls to **Hatch Rest 2nd Gen**. It uses a receiver accessory so sounds appear in a single-choice input menu, together with volume and light controls. It is not affiliated with Hatch or Apple.
+This independent, unofficial Homebridge plugin provides model-specific receivers for **Hatch Rest, Rest+ and Rest Mini**, plus routine receivers for **Restore and Hatch Baby**. Full hardware validation currently covers Rest 2nd Gen. It uses a receiver accessory so sounds appear in a single-choice input menu, together with volume and light controls. It is not affiliated with Hatch or Apple.
 
-**Release status:** Version 0.2.1 is prepared for release. npm publication and Homebridge verification are pending. Older GitHub releases use the previous switch interface. A verified badge is awarded by Homebridge after review; this project does not currently claim verification.
+**Release status:** Version 0.3.0 introduces receivers for Rest+, Rest Mini and Restore routines. Homebridge verification is pending. Older GitHub releases use the previous switch interface. A verified badge is awarded by Homebridge after review; this project does not currently claim verification.
 
 ## Contents
 
@@ -25,7 +25,7 @@ This independent, unofficial Homebridge plugin brings full controls to **Hatch R
 
 ## What you can control
 
-The following applies to Rest 2nd Gen and the implemented Rest+ 2nd Gen interface. Other models retain their upstream controls; see the compatibility table below.
+The full controls below apply to Rest 2nd Gen and Rest+ 2nd Gen. Original Wi-Fi Rest+ uses the same interface with its native sounds and light controls; Mini omits the light. Restore/Baby have routine-only receivers, described below.
 
 | Control | Behavior |
 | --- | --- |
@@ -53,11 +53,11 @@ This plugin does not add AirPlay, Apple Intercom, microphone access, two-way aud
 
 ## What the Home interface looks like
 
-Each Rest 2 is an **audio receiver accessory** with one main tile. Open it to access:
+Each supported device is an **audio receiver accessory** with one main tile. Open it to access:
 
 1. Receiver power and the named sound/input picker.
 2. A percentage volume slider, labeled **Volume**.
-3. A light control with brightness and a color picker.
+3. A light control with brightness and a color picker, on Rest/Rest+ models. Mini has no light; Restore/Baby expose only routine selection and power.
 
 Apple Home determines the exact panel arrangement, icon choices and wording for your OS version. The plugin supplies sound ordering and creates receiver, volume and light services in that order, but cannot force a custom Home screen layout.
 
@@ -71,7 +71,7 @@ The native receiver speaker controls are exposed too, but their presentation dep
 
 Yes. Catalog names are supplied automatically, so inputs start as **Ocean**, **Rain**, and so on. Rename them in the accessory’s Home settings if desired. Custom input names are saved in Homebridge storage and restored after restart. Generic labels that Home may send during pairing, such as “Input Source 3,” are replaced with the actual catalog name.
 
-There is no alternate switch layout in version 0.2.0.
+There is no alternate switch layout in this release.
 
 ## Supported devices
 
@@ -79,9 +79,18 @@ There is no alternate switch layout in version 0.2.0.
 | --- | --- |
 | **Rest 2nd Gen (`riot`)** | Full receiver interface: power, named sounds, volume, brightness and color. Hardware-tested development target. |
 | **Rest+ 2nd Gen (`riotPlus`)** | Same full-control implementation. Separate hardware validation is still needed. |
-| First-generation Wi-Fi Rest+ / Rest Mini | Inherited upstream controls. Not revalidated for this release; not the new Rest 2 receiver interface. |
-| Restore family / Hatch Baby | Inherited upstream routine controls. Not the full Rest 2 interface and not revalidated for this release. |
+| **Original Wi-Fi Rest+ (`restPlus`)** | New receiver with native named sounds, power, volume, color/brightness and battery status. Protocol-adapter tests pass; physical validation is pending. |
+| **Rest Mini (`restMini`)** | New receiver with native named sounds, power and volume. No light controls. Protocol-adapter tests pass; physical validation is pending. |
+| **Original Restore (`restore`)** | New routine-only receiver: Bedtime Routine and stop/power controls. No individual tracks, volume slider or color controls. Experimental until hardware-tested. |
+| **Restore IoT / Restore 2 and later recognized variants** | New routine-only receiver: named touch-ring/favorite routines and power. No direct sound/volume/color controls. Experimental until hardware-tested; exact model labels depend on Hatch’s product identifier. |
+| **Hatch Baby (`restBaby`)** | Same experimental routine-only receiver as modern Restore. Full Rest 2 controls are not claimed. |
 | Original Bluetooth-only Rest / Rest Go | Not supported by this Wi-Fi/cloud plugin. |
+
+### Model-specific sound and routine menus
+
+Original Wi-Fi Rest+ uses its built-in catalog: Stream, Pink Noise, Dryer, Ocean, Wind, Rain, Birds, Crickets, Brahms Lullaby, Twinkle Twinkle and Rock a Bye. Rest Mini uses White Noise, Ocean, Rain, Water, Wind, Birds, Dryer and Heartbeat. These IDs differ from Rest 2; the plugin selects the correct catalog automatically. **No Sound** is last in each sound menu. On Mini, stopping sound also turns the audio-only device off.
+
+Restore/Baby receivers deliberately expose only established routine commands. Modern variants list touch-ring/favorite routine names from Hatch; the original Restore has a single **Bedtime Routine** input. **Off or Other** means no listed routine is currently selected, and selecting it stops playback. This is not a direct track picker. Power starts the first available routine; remembered manual sound/light restoration is supported on the Rest family, not Restore. Create/edit routines in Hatch. No unsupported sliders are shown.
 
 Please check the generation in your Hatch app before installing. A shared product name does not guarantee the same protocol or features.
 
@@ -91,31 +100,31 @@ Please check the generation in your Hatch app before installing. A shared produc
 - The email and password for the Hatch account that owns or can access it.
 - Internet access from Homebridge to Hatch and its AWS IoT service.
 - Homebridge **1.8+ or 2.x** and Node.js **22.12+, 24.x or 26.x**.
-- A touch-ring favorite in Hatch for the initial power-on fallback, before the plugin has observed any active playback.
+- For Rest 2 and modern Restore/Baby, a touch-ring favorite in Hatch for initial routine startup. Original Rest+ and Mini use their native power/sound controls.
 - Apple Home for pairing and control. Remote access and Home automations additionally depend on your Apple Home hub setup.
 
 Automated release checks cover Node 22, 24 and 26 with Homebridge 2.5. Physical testing currently covers Rest 2nd Gen only.
 
 ## Install and configure
 
-### Homebridge UI — after npm publication
+### Homebridge UI
 
 1. Open Homebridge UI → **Plugins**.
-2. Search for **homebridge-hatch-rest-control** and install it.
+2. Search for **homebridge-hatch-control** and install it.
 3. Open the plugin’s settings and enter your Hatch email and password.
 4. Leave **Sound IDs** unset to expose the full basic catalog.
 5. Enable a child bridge for the plugin if your setup supports it. This isolates it from other integrations.
 6. Save and restart Homebridge.
 7. Check the logs for discovered devices and the number of named sounds, then [pair the receiver](#pair-with-apple-home).
 
-Until npm publication, plugin search and registry installation will not find this package. For development or manual installation, build from this repository and install the resulting package using your Homebridge installation’s normal plugin-install procedure.
+Plugin search may take time to refresh after a new npm release. For development or manual installation, build from this repository and install the resulting package using your Homebridge installation’s normal plugin-install procedure.
 
-### Manual npm installation — after publication
+### Manual npm installation
 
 On installations that use globally installed Homebridge plugins:
 
 ```sh
-npm install -g homebridge-hatch-rest-control
+npm install -g homebridge-hatch-control
 ```
 
 Use Homebridge UI instead on managed installations such as Docker or the Raspberry Pi image, where plugin paths and permissions are managed for you.
@@ -127,7 +136,7 @@ Add this object to the `platforms` array in Homebridge’s `config.json`; do not
 ```json
 {
   "platform": "HatchRestControl",
-  "name": "Hatch Rest Control",
+  "name": "Hatch Control",
   "email": "your-hatch-email@example.com",
   "password": "your-hatch-password"
 }
@@ -137,7 +146,7 @@ The plugin remains inactive until both email and password are configured. Device
 
 ## Pair with Apple Home
 
-Rest 2 receivers are **external accessories** and must be paired separately, even when the plugin runs inside a child bridge.
+All receivers in this release are **external accessories** and must be paired separately, even when the plugin runs inside a child bridge.
 
 1. Start Homebridge and wait for the plugin to discover the Rest.
 2. In Apple Home, choose **Add Accessory → More Options** (or the equivalent option for an accessory without a scannable code).
@@ -146,9 +155,9 @@ Rest 2 receivers are **external accessories** and must be paired separately, eve
 5. Follow Home’s prompts, choose a room, and give the accessory a convenient name such as **Nursery Rest**.
 6. Open its controls and confirm that the input picker has actual sound names, the Volume slider changes sound level, and the Light control changes brightness/color.
 
-Repeat for each Rest 2. If you also use models with inherited bridged controls, pair the child bridge as well. Pairing only the bridge does not automatically add its external receivers.
+Repeat for each device. Pairing only the bridge does not automatically add its external receivers.
 
-Existing receiver-preview installations retain their pairing identity when upgraded to 0.2.0. The old duplicate switch accessory is removed automatically. Home may retain a name you previously chose, including “Preview”; rename that accessory in Home if desired.
+Existing receiver-preview installations retain their pairing identity when upgraded to 0.3.0. The old duplicate switch accessory is removed automatically. Home may retain a name you previously chose, including “Preview”; rename that accessory in Home if desired.
 
 ## Configuration reference
 
@@ -166,14 +175,14 @@ Example limiting the catalog to Ocean and Rain on the tested Rest 2:
 ```json
 {
   "platform": "HatchRestControl",
-  "name": "Hatch Rest Control",
+  "name": "Hatch Control",
   "email": "your-hatch-email@example.com",
   "password": "your-hatch-password",
   "soundIds": [10138, 10139]
 }
 ```
 
-IDs are Hatch catalog IDs, not input positions. They must exist in the returned catalog. The filter does not set the sound order or create new tracks. Remove `soundIds` to restore the complete basic catalog. Restart Homebridge after configuration changes.
+IDs are model-specific Hatch sound IDs, not input positions. The same sound has different IDs on different generations; a global filter applies to every discovered Rest-family device. Leave it unset in mixed-model homes unless you include the desired IDs for each model. They must exist in the returned catalog. The filter does not set the sound order or create new tracks. Remove `soundIds` to restore the complete basic catalog. Restart Homebridge after configuration changes.
 
 Child-bridge settings such as `_bridge` are managed by Homebridge UI. There is no `receiverPreview` setting or alternate interface to enable in this release.
 
@@ -204,6 +213,8 @@ Remember that a Hatch schedule may later replace manual settings or scene change
 3. Install and configure this plugin, then pair and test its receiver.
 4. Once it works, disable or uninstall the old plugin for the same device to avoid duplicate controls.
 
+The npm package and repository were renamed from `homebridge-hatch-rest-control` to `homebridge-hatch-control` for version 0.3.0. The configuration alias remains `HatchRestControl` for compatibility. Existing Rest 2 receiver UUIDs and preference-storage paths are preserved. When upgrading from the old package, install the new package, keep your platform credentials and child-bridge settings, and uninstall the old package before restarting to avoid duplicate platform registrations. Older Rest+/Mini/Restore bridged tiles require pairing their new external receivers and updating scenes.
+
 You do not need to keep either `homebridge-hatch-baby-rest` or `homebridge-hatch-baby-rest-volume` installed to use this plugin. Automatic migration of names, rooms, scenes or pairing from another plugin is not guaranteed.
 
 Upgrading this plugin from the old switch layout removes that legacy tile. Existing scenes attached to its switches must be updated to use the receiver. Custom names saved by the receiver preview are migrated before the old cached accessory is removed.
@@ -214,10 +225,10 @@ Upgrading this plugin from the old switch layout removes that legacy tile. Exist
 | --- | --- |
 | Plugin is absent from search | npm publication must be complete first; Homebridge search may take time to refresh its index. |
 | No supported devices found | Confirm that the same account can see the device in Hatch, and check its exact model/generation against the table above. |
-| Login fails / HTTP 401 or 403 | Verify the login in Hatch and plugin settings. An error from the old volume add-on’s endpoint does not prove this plugin will fail; ensure the log belongs to Hatch Rest Control. Repeated failures can also reflect Hatch API changes or service restrictions. Do not post credentials in an issue. |
+| Login fails / HTTP 401 or 403 | Verify the login in Hatch and plugin settings. An error from the old volume add-on’s endpoint does not prove this plugin will fail; ensure the log belongs to Hatch Control. Repeated failures can also reflect Hatch API changes or service restrictions. Do not post credentials in an issue. |
 | Main power does not start playback | If no previous playback has been remembered yet, create a touch-ring favorite in Hatch and confirm it works there. Once playback is observed, main power restores those sound/light settings in manual mode. |
 | Receiver does not appear in Home | Check that Homebridge and the phone can discover one another on the network, inspect startup logs, and look under Add Accessory → More Options. Pair the external receiver separately from its child bridge. |
-| Duplicate Hatch tiles | Check for another Hatch plugin still running. On an upgrade, inspect logs to confirm removal of the former switch accessory. Do not remove your working receiver while diagnosing another tile. |
+| Duplicate Hatch tiles | Check for another Hatch plugin still running. On an upgrade, inspect logs to confirm removal of former bridged accessories. Do not remove your working receiver while diagnosing another tile. |
 | Volume looks like a fan | Expected: this service supplies Apple Home’s percentage slider. It changes audio volume. |
 | Sound menu only shows No Sound | Check whether `soundIds` is empty or contains IDs missing from the catalog. If catalog loading failed and no cache exists yet, restore cloud connectivity and restart. |
 | Sound catalog temporarily unavailable | Previously cached sound names are reused; power, volume and light controls remain available when the device connection is working. |
@@ -228,7 +239,7 @@ Upgrading this plugin from the old switch layout removes that legacy tile. Exist
 
 For an issue, include the plugin, Homebridge and Node versions; Hatch model; what you tried; expected versus actual behavior; and **redacted** relevant log lines. Report untested models explicitly. Do not attach a complete Homebridge backup or full configuration.
 
-[Open an issue](https://github.com/yweiss/homebridge-hatch-rest-control/issues).
+[Open an issue](https://github.com/yweiss/homebridge-hatch-control/issues).
 
 ## Privacy
 

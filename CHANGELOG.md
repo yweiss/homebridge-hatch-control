@@ -1,5 +1,13 @@
 # Changelog
 
+## 0.3.0
+
+- Renamed the package to homebridge-hatch-control; preserved the configuration alias, Rest 2 pairing identity and preference storage.
+- Added original Wi-Fi Rest+ and Rest Mini receiver adapters with model-specific sound catalogs and supported controls.
+- Added routine-only receivers for original Restore, recognized modern Restore variants and Hatch Baby. These omit unvalidated direct sound, volume and color controls.
+- Added model-specific command, offline, persistence and HomeKit-service tests. New models are not yet hardware-validated.
+- Original Bluetooth Rest and Rest Go remain unsupported.
+
 ## 0.2.1
 
 - Main power restores the last sound, volume, mute, color and brightness settings in manual mode, with memory retained across restarts.

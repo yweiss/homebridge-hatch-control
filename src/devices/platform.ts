@@ -1,9 +1,11 @@
+import { RestPlus } from "./rest-plus.ts";
+import { RestMini } from "./rest-mini.ts";
+import { legacyRestDevice, legacySounds } from "./legacy-rest-controls.ts";
+import { RestoreReceiverAccessory } from "./restore-receiver.ts";
 import { ReceiverStateStore } from "./receiver-state.ts";
 import { ApiConfig, HatchBabyApi } from "./api.ts";
 import { hap, isTestHomebridge } from "../shared/hap.ts";
 import { delay, useLogger } from "../shared/util.ts";
-import { LightAndSoundMachineAccessory } from "../shared/light-and-sound-machine.ts";
-import { SoundMachineAccessory } from "../shared/sound-machine.ts";
 import type {
   API,
   DynamicPlatformPlugin,
@@ -11,14 +13,13 @@ import type {
   PlatformAccessory,
   PlatformConfig,
 } from "homebridge";
-import { RestoreAccessory } from "./restore-accessory.ts";
 import { RestIot } from "./rest-iot.ts";
 import { Restore } from "./restore.ts";
 import { RestControlsAccessory } from "./rest-controls-accessory.ts";
 import { fetchSounds, HatchSound } from "./rest-controls.ts";
 import { Product } from "../shared/hatch-sleep-types.ts";
 
-export const pluginName = "homebridge-hatch-rest-control";
+export const pluginName = "homebridge-hatch-control";
 export const platformName = "HatchRestControl";
 
 const initialConnectRetryDelay = 30000,
@@ -125,8 +126,6 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
           },
       { api } = this,
       cachedAccessoryIds = Object.keys(this.homebridgeAccessories),
-      platformAccessories: PlatformAccessory[] = [],
-      activeAccessoryIds: string[] = [],
       debugPrefix = isTestHomebridge ? "TEST " : "",
       devices = [
         ...restPluses,
@@ -175,16 +174,18 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
 
     const receiverState = new ReceiverStateStore(api.user.storagePath());
 
-    devices.forEach((device) => {
+    for (const device of devices) {
       const id = device.id,
         uuid = hap.uuid.generate(debugPrefix + id),
         displayName = debugPrefix + device.name;
       const cached = this.homebridgeAccessories[uuid];
-      if (
-        device instanceof RestIot &&
-        (device.info.product === Product.riot ||
-          device.info.product === Product.riotPlus)
-      ) {
+      const legacy = device instanceof RestPlus || device instanceof RestMini;
+      const fullControls =
+        legacy ||
+        (device instanceof RestIot &&
+          (device.info.product === Product.riot ||
+            device.info.product === Product.riotPlus));
+      {
         // Keep the original external UUID namespace to preserve existing pairings.
         const receiverUuid = hap.uuid.generate(
           "hatch-rest-receiver-preview:" + id,
@@ -195,11 +196,13 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
           hap.Categories.AUDIO_RECEIVER,
         );
         receiver.context = receiverState.load(receiverUuid, cached?.context);
-        const available = sounds ?? receiver.context.restSounds ?? [];
+        const available = legacy
+          ? legacySounds(device as RestPlus | RestMini, this.config.soundIds)
+          : (sounds ?? receiver.context.restSounds ?? []);
         receiver.context.restSounds = available;
         // Persist the legacy context before removing the former bridged accessory.
         receiverState.save(receiverUuid, receiver.context);
-        new RestControlsAccessory(device, receiver, available, () => {
+        const save = () => {
           try {
             receiverState.save(receiverUuid, receiver.context);
           } catch {
@@ -207,45 +210,67 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
               "Unable to save receiver settings in Homebridge storage.",
             );
           }
-        });
+        };
+        if (fullControls) {
+          const controlled = legacy
+            ? legacyRestDevice(
+                device as RestPlus | RestMini,
+                receiver.context,
+                save,
+              )
+            : (device as RestIot);
+          new RestControlsAccessory(controlled, receiver, available, save);
+        } else {
+          let routines = receiver.context.restRoutines || [];
+          if (device instanceof Restore)
+            routines = [{ id: 1, name: "Bedtime Routine" }];
+          else {
+            try {
+              const found = await (device as RestIot).fetchRoutines();
+              const seen = new Set<number>();
+              routines = found
+                .filter(
+                  (r) =>
+                    Number.isInteger(r.id) &&
+                    r.id > 0 &&
+                    r.id <= 0xffffffff &&
+                    !seen.has(r.id) &&
+                    seen.add(r.id),
+                )
+                .slice(0, 40)
+                .map((r) => ({
+                  id: r.id,
+                  name: r.name?.trim() || `Routine ${r.id}`,
+                }));
+            } catch {
+              this.log.warn(
+                "Routine catalog unavailable; using cached routine names.",
+              );
+            }
+          }
+          receiver.context.restRoutines = routines;
+          save();
+          new RestoreReceiverAccessory(
+            device as Restore | RestIot,
+            receiver,
+            routines,
+            save,
+          );
+        }
         api.publishExternalAccessories(pluginName, [receiver]);
         this.log.info(
-          `Full controls: ${device.name}; ${available.length} named sounds`,
+          fullControls
+            ? `Receiver controls: ${device.name}; ${available.length} named sounds`
+            : `Routine receiver: ${device.name}; ${receiver.context.restRoutines.length} routines (direct sound/light controls unavailable)`,
         );
-        return;
       }
-      const homebridgeAccessory =
-        cached ||
-        new api.platformAccessory(displayName, uuid, hap.Categories.LIGHTBULB);
-      if (!cached) {
-        platformAccessories.push(homebridgeAccessory);
-        this.log.info(`Adding new Hatch ${device.model} - ${displayName}`);
-      }
-      if (device instanceof Restore || device instanceof RestIot) {
-        new RestoreAccessory(device, homebridgeAccessory);
-      } else if ("onBrightness" in device) {
-        new LightAndSoundMachineAccessory(device, homebridgeAccessory);
-      } else {
-        new SoundMachineAccessory(device, homebridgeAccessory);
-      }
-
-      this.homebridgeAccessories[uuid] = homebridgeAccessory;
-      activeAccessoryIds.push(uuid);
-    });
-
-    if (platformAccessories.length) {
-      api.registerPlatformAccessories(
-        pluginName,
-        platformName,
-        platformAccessories,
-      );
     }
 
     api.updatePlatformAccessories(Object.values(this.homebridgeAccessories));
 
-    const staleAccessories = cachedAccessoryIds
-      .filter((cachedId) => !activeAccessoryIds.includes(cachedId))
-      .map((id) => this.homebridgeAccessories[id]);
+    const staleAccessories = cachedAccessoryIds.map(
+      (id) => this.homebridgeAccessories[id],
+    );
 
     staleAccessories.forEach((staleAccessory) => {
       this.log.info(

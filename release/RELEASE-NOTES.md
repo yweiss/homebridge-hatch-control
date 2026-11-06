@@ -1,11 +1,17 @@
-# Hatch Rest Control 0.2.1
+# Hatch Control 0.3.0
 
-Rest 2 controls now live in a single receiver accessory with a named sound picker, power, percentage volume, brightness and color. The sound menu permits one active selection, and actual catalog names are provided during pairing. Custom names persist across restarts. Main power restores the last sound, volume, mute, color and brightness settings in manual mode, with memory retained across restarts. The No Sound input appears last in the menu.
+The plugin is now **homebridge-hatch-control**, reflecting support beyond Rest 2. The configuration alias remains `HatchRestControl`, and existing Rest 2 receiver pairing identities and private preferences are preserved.
 
-The former switch layout and its configuration option have been removed. Existing receiver pairings keep their identity; the old duplicate switch tile is removed automatically. Scenes targeting old switches need to be updated. New installations pair each receiver separately using the hosting bridge’s setup code.
+- Rest 2 / Rest+ 2: receiver sound picker, power, volume, brightness, color and remembered playback.
+- Original Wi-Fi Rest+: new receiver using native sound IDs, power, volume, color/brightness and battery status.
+- Rest Mini: new receiver with named sounds, power and volume; no light controls.
+- Restore and Hatch Baby: experimental routine-only receivers. Modern recognized variants expose touch-ring/favorite routines; original Restore exposes Bedtime Routine. No unvalidated direct track, volume or color controls are shown.
+- Bluetooth-only original Rest and Rest Go remain unsupported.
 
-Apple Home uses a fan-speed service for the visible percentage volume slider. Native speaker volume/mute and remote steps are exposed as well. Home controls its own icon and panel arrangement.
+Rest-family receivers put No Sound last in the menu and restore remembered playback settings after power cycles. Apple Home uses a fan-speed service for the visible percentage volume slider; native receiver speaker controls are also exposed where supported.
 
-Validation: 39 automated tests on Node 22, 24 and 26, successful TypeScript build, package-content and known-private-data scans. Rest 2nd Gen is the hardware-tested model; other models and exact Siri phrases are not claimed as validated.
+**Migration:** install the new package and remove the old homebridge-hatch-rest-control package before restarting. Keep existing Hatch credentials and child-bridge settings. Rest 2 receivers retain pairing. Former bridged Rest+/Mini/Restore tiles require pairing the new external receiver separately and updating scenes/automations.
 
-Author: Yoav Weiss. Credits retained for Dusty Greif, Scott MacWatters and Brian Via.
+Validation: 52 automated tests pass on Node 22, 24 and 26; TypeScript builds successfully. Physical validation covers Rest 2nd Gen only. Newly added model adapters and Restore routine receivers are explicitly unvalidated on hardware. Privacy and package-content scans are performed before release.
+
+Author: Yoav Weiss. Credits retained for Dusty Greif, Scott MacWatters and Brian Via. MIT licensed.

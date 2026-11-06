@@ -1,8 +1,8 @@
-import { firstValueFrom, timeout } from "rxjs";
+import { firstValueFrom, timeout, type Observable } from "rxjs";
 import type { RestIotState } from "../shared/hatch-sleep-types.ts";
 import { hsbToRgb, rgbToHsb } from "../shared/colors.ts";
 import type { HsbColor } from "../shared/colors.ts";
-import { RestIot } from "./rest-iot.ts";
+import type { BaseDevice } from "../shared/base-accessory.ts";
 import { apiPath, RestClient } from "./rest-client.ts";
 import type { DeepPartial } from "ts-essentials";
 
@@ -174,14 +174,23 @@ export function playbackSnapshot(
   };
 }
 
+export interface RestControlDevice extends BaseDevice {
+  onState: Observable<RestIotState>;
+  hasLight?: boolean;
+  resumeSoundId?(): number;
+  onBatteryLevel?: Observable<number>;
+  update(change: DeepPartial<RestIotState>): Promise<unknown>;
+  fetchRoutines(): Promise<{ id: number }[]>;
+}
+
 export class RestControls {
-  readonly device: RestIot;
+  readonly device: RestControlDevice;
   readonly sounds: HatchSound[];
   private readonly memory: PlaybackMemory;
   private readonly saveMemory: () => void;
   private saveTimer?: NodeJS.Timeout;
   constructor(
-    device: RestIot,
+    device: RestControlDevice,
     sounds: HatchSound[],
     memory: PlaybackMemory = {},
     saveMemory: () => void = () => {},
@@ -261,9 +270,12 @@ export class RestControls {
     const state = await this.state();
     if (!on) return this.device.update({ current: { sound: { mute: true } } });
     if (state.current.sound.id === NO_SOUND) {
-      if (!this.sounds[0])
-        throw new Error("Select a sound in the Hatch app first");
-      return this.device.update(trackChange(this.sounds[0]));
+      const sound =
+        this.sounds.find(
+          (sound) => sound.id === this.device.resumeSoundId?.(),
+        ) || this.sounds[0];
+      if (!sound) throw new Error("Select a sound in the Hatch app first");
+      return this.device.update(trackChange(sound));
     }
     return this.device.update({
       current: {

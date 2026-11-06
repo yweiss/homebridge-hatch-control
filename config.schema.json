@@ -1,8 +1,8 @@
 {
   "pluginAlias": "HatchRestControl",
   "pluginType": "platform",
-  "name": "Hatch Rest Control",
-  "headerDisplay": "Power, volume, named sounds and color controls for Hatch Rest. Use your Hatch account login.",
+  "name": "Hatch Control",
+  "headerDisplay": "Receiver controls for Hatch Rest, Rest+ and Mini; routine receivers for Restore/Baby. Controls vary by model. Use your Hatch account login.",
   "schema": {
     "type": "object",
     "properties": {
@@ -14,11 +14,12 @@
       "password": {
         "title": "Hatch password",
         "type": "string",
-        "required": true
+        "required": true,
+        "format": "password"
       },
       "soundIds": {
         "title": "Sound IDs to expose (optional)",
-        "description": "Omit to include every basic sound in the receiver sound picker. An empty array hides catalog sounds.",
+        "description": "Optional global filter for Rest-family sound IDs. IDs differ by model; leave unset for the full catalog on mixed-model setups. Does not filter Restore routines.",
         "type": "array",
         "items": {
           "type": "integer"

@@ -6,7 +6,9 @@ import type { PlaybackMemory, HatchSound } from "./rest-controls.ts";
 interface ReceiverState extends PlaybackMemory {
   receiverNames?: Record<string, string>;
   restSounds?: HatchSound[];
+  legacyTrack?: number;
   restColor?: HsbColor;
+  restRoutines?: { id: number; name: string }[];
 }
 
 // Only UI preferences and playback settings are persisted; never account credentials.
@@ -36,7 +38,9 @@ export class ReceiverStateStore {
     return {
       receiverNames: { ...state.receiverNames },
       restSounds: state.restSounds,
+      legacyTrack: state.legacyTrack,
       restColor: state.restColor,
+      restRoutines: state.restRoutines,
       lastPlayback: state.lastPlayback,
     };
   }

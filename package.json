@@ -1,18 +1,18 @@
 {
-  "name": "homebridge-hatch-rest-control",
-  "version": "0.2.1",
-  "description": "Homebridge controls for Hatch Rest: power, named sounds, volume, brightness and color",
+  "name": "homebridge-hatch-control",
+  "version": "0.3.0",
+  "description": "Homebridge receiver controls for Hatch Rest, Rest+, Rest Mini and Restore routines",
   "type": "module",
   "main": "lib/devices/index.js",
   "author": "Yoav Weiss",
   "license": "MIT",
   "repository": {
     "type": "git",
-    "url": "https://github.com/yweiss/homebridge-hatch-rest-control.git"
+    "url": "https://github.com/yweiss/homebridge-hatch-control.git"
   },
-  "homepage": "https://github.com/yweiss/homebridge-hatch-rest-control#readme",
+  "homepage": "https://github.com/yweiss/homebridge-hatch-control#readme",
   "bugs": {
-    "url": "https://github.com/yweiss/homebridge-hatch-rest-control/issues"
+    "url": "https://github.com/yweiss/homebridge-hatch-control/issues"
   },
   "keywords": [
     "homebridge-plugin",
@@ -21,7 +21,10 @@
     "rest2",
     "homekit",
     "siri",
-    "sound-machine"
+    "sound-machine",
+    "restore",
+    "rest-plus",
+    "rest-mini"
   ],
   "engines": {
     "node": "^22.12.0 || ^24.0.0 || ^26.0.0",

@@ -59,7 +59,7 @@ export class RestIot extends IotDevice<RestIotState> implements BaseDevice {
     step: number,
     srId: number,
   ) {
-    this.update({
+    return this.update({
       current: {
         playing,
         step,
@@ -75,11 +75,11 @@ export class RestIot extends IotDevice<RestIotState> implements BaseDevice {
       logError(`Unable to turn on ${this.name} - no touch ring routines found. Please create a favorite routine in the Hatch app`)
       return
     }
-    this.setCurrent('routine', 1, routines[0].id)
+    return this.setCurrent('routine', 1, routines[0].id)
   }
 
   turnOff() {
-    this.setCurrent('none', 0, 0)
+    return this.setCurrent('none', 0, 0)
   }
 
   async fetchRoutines() {

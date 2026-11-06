@@ -1,3 +1,4 @@
+import { configureReceiverName } from "./receiver-names.ts";
 import type {
   Characteristic,
   CharacteristicValue,
@@ -10,13 +11,14 @@ import { distinctUntilChanged, map } from "rxjs/operators";
 import { hap } from "../shared/hap.ts";
 import { BaseAccessory } from "../shared/base-accessory.ts";
 import type { HsbColor } from "../shared/colors.ts";
-import { RestIot } from "./rest-iot.ts";
+
 import {
   HatchSound,
   lightHsb,
   lightOn,
   percent,
   RestControls,
+  type RestControlDevice,
   soundOn,
 } from "./rest-controls.ts";
 
@@ -31,7 +33,7 @@ export class RestControlsAccessory extends BaseAccessory {
   }[] = [];
 
   constructor(
-    device: RestIot,
+    device: RestControlDevice,
     accessory: PlatformAccessory,
     sounds: HatchSound[],
     saveNames: () => void = () => {},
@@ -90,6 +92,22 @@ export class RestControlsAccessory extends BaseAccessory {
       (value) => this.controls.setVolume(Number(value)),
     );
 
+    if (device.onBatteryLevel) {
+      const battery = service(Service.Battery, "Battery", "battery");
+      battery.setCharacteristic(
+        Characteristic.ChargingState,
+        Characteristic.ChargingState.NOT_CHARGEABLE,
+      );
+      this.bind(
+        battery.getCharacteristic(Characteristic.BatteryLevel),
+        device.onBatteryLevel,
+      );
+      this.bind(
+        battery.getCharacteristic(Characteristic.StatusLowBattery),
+        device.onBatteryLevel.pipe(map((level) => (level < 20 ? 1 : 0))),
+      );
+    }
+    if (device.hasLight === false) return;
     const light = service(Service.Lightbulb, "Light", "light");
     const context = accessory.context;
     context.restColor = context.restColor || { h: 0, s: 0, b: 10 };
@@ -123,7 +141,7 @@ export class RestControlsAccessory extends BaseAccessory {
   }
 
   private addReceiver(
-    device: RestIot,
+    device: RestControlDevice,
     accessory: PlatformAccessory,
     sounds: HatchSound[],
   ) {
@@ -256,45 +274,25 @@ export class RestControlsAccessory extends BaseAccessory {
     key: string,
     defaultName: string,
   ) {
-    const C = hap.Characteristic;
-    if (!service.testCharacteristic(C.ConfiguredName))
-      service.addOptionalCharacteristic(C.ConfiguredName);
-    const names: Record<string, string> =
-      (this.accessory.context.receiverNames ||= {});
-    const characteristic = service.getCharacteristic(C.ConfiguredName);
-    const generic = (name: string) =>
-      key.startsWith("input:") && /^input(?: source)?(?: \d+)?$/i.test(name);
-    if (
-      names[key] &&
-      (generic(names[key]) ||
-        (key === "input:0" && names[key] === "Off / Other"))
-    )
-      delete names[key];
-    const getName = () => names[key] || defaultName;
-    characteristic.updateValue(getName());
-    characteristic.onGet(getName);
-    characteristic.onSet((value) => {
-      const name = String(value).trim();
-      if (!name || generic(name)) {
-        // Home can overwrite the catalog names with generic input labels
-        // during pairing. Restore after HAP finishes accepting this write.
-        setImmediate(() => characteristic.updateValue(getName()));
-        return;
-      }
-      names[key] = name;
-      this.saveNames();
-    });
+    configureReceiverName(
+      this.accessory,
+      service,
+      key,
+      defaultName,
+      this.saveNames,
+    );
   }
 
   private bind(
     characteristic: Characteristic,
     values: Observable<CharacteristicValue>,
-    setter: (value: CharacteristicValue) => Promise<unknown>,
+    setter?: (value: CharacteristicValue) => Promise<unknown>,
   ) {
     characteristic.onGet(() => firstValueFrom(values.pipe(timeout(8000))));
-    characteristic.onSet(async (value) => {
-      await setter(value);
-    });
+    if (setter)
+      characteristic.onSet(async (value) => {
+        await setter(value);
+      });
     values
       .pipe(distinctUntilChanged())
       .subscribe((value) => characteristic.updateValue(value));

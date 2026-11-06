@@ -85,8 +85,13 @@ describe('RestIot', () => {
       { restIot, client } = createRestIot({ request })
 
     await client.simulateConnect()
+    const update = client.update.bind(client)
+    vi.spyOn(client, 'update').mockImplementation((thing, payload) => {
+      const token = update(thing, payload)
+      setImmediate(() => client.emit('status', thing, 'accepted', token, {}))
+      return token
+    })
     await restIot.turnOnRoutine()
-    await new Promise((resolve) => setTimeout(resolve, 20))
 
     expect(client.updates).toEqual([
       {
