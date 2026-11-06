@@ -1,5 +1,14 @@
 # Changelog
 
+## 0.2.0
+
+- Replaced Rest 2 sound switches with a separately paired audio receiver and single-choice named sound picker.
+- Kept power, percentage volume, brightness and color controls together. Apple Home uses a fan-speed slider for percentage volume; native receiver speaker and remote controls are also exposed.
+- Supplied real input names during pairing and preserved user renames in private Homebridge storage.
+- Removed the alternate layout option and migrated away from its duplicate bridged accessory while retaining existing receiver pairing identity.
+- Added persistent preference migration and an inactive-until-configured guard.
+- Hardware acceptance covers Rest 2nd Gen. Other models and exact Siri phrases remain unverified.
+
 ## 0.1.1
 
 - Register configured service names explicitly to avoid Homebridge startup warnings.

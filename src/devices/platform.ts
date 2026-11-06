@@ -1,3 +1,4 @@
+import { ReceiverStateStore } from "./receiver-state.ts";
 import { ApiConfig, HatchBabyApi } from "./api.ts";
 import { hap, isTestHomebridge } from "../shared/hap.ts";
 import { delay, useLogger } from "../shared/util.ts";
@@ -44,8 +45,10 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
       },
     });
 
-    if (!config) {
-      this.log.info("No configuration found for platform HatchRestControl");
+    if (!config?.email || !config?.password) {
+      this.log.info(
+        "Configure your Hatch email and password to enable HatchRestControl",
+      );
       return;
     }
 
@@ -92,6 +95,7 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
   }
 
   async connectToApi() {
+    if (!this.config?.email || !this.config?.password) return;
     const hatchBabyApi =
         this.config.email && this.config.password
           ? new HatchBabyApi(this.config)
@@ -169,61 +173,55 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
       }
     }
 
+    const receiverState = new ReceiverStateStore(api.user.storagePath());
+
     devices.forEach((device) => {
       const id = device.id,
         uuid = hap.uuid.generate(debugPrefix + id),
-        displayName = debugPrefix + device.name,
-        createHomebridgeAccessory = () => {
-          const accessory = new api.platformAccessory(
-            displayName,
-            uuid,
-            hap.Categories.LIGHTBULB,
-          );
-
-          this.log.info(`Adding new Hatch ${device.model} - ${displayName}`);
-          platformAccessories.push(accessory);
-
-          return accessory;
-        },
-        homebridgeAccessory =
-          this.homebridgeAccessories[uuid] || createHomebridgeAccessory();
-
+        displayName = debugPrefix + device.name;
+      const cached = this.homebridgeAccessories[uuid];
       if (
         device instanceof RestIot &&
         (device.info.product === Product.riot ||
           device.info.product === Product.riotPlus)
       ) {
-        const available =
-          sounds ?? homebridgeAccessory.context.restSounds ?? [];
-        homebridgeAccessory.context.restSounds = available;
-        new RestControlsAccessory(device, homebridgeAccessory, available);
-        if (this.config.receiverPreview) {
-          const preview = new api.platformAccessory(
-            device.name + " Preview",
-            hap.uuid.generate("hatch-rest-receiver-preview:" + id),
-            hap.Categories.AUDIO_RECEIVER,
-          );
-          preview.context.receiverNames =
-            homebridgeAccessory.context.receiverNames ||= {};
-          new RestControlsAccessory(
-            device,
-            preview,
-            available,
-            "receiver",
-            () => {
-              api.updatePlatformAccessories([homebridgeAccessory]);
-            },
-          );
-          api.publishExternalAccessories(pluginName, [preview]);
-          this.log.info(
-            "Receiver preview published; pair the Preview accessory in Apple Home using this child bridge's setup code.",
-          );
-        }
-
+        // Keep the original external UUID namespace to preserve existing pairings.
+        const receiverUuid = hap.uuid.generate(
+          "hatch-rest-receiver-preview:" + id,
+        );
+        const receiver = new api.platformAccessory(
+          displayName,
+          receiverUuid,
+          hap.Categories.AUDIO_RECEIVER,
+        );
+        receiver.context = receiverState.load(receiverUuid, cached?.context);
+        const available = sounds ?? receiver.context.restSounds ?? [];
+        receiver.context.restSounds = available;
+        // Persist the legacy context before removing the former bridged accessory.
+        receiverState.save(receiverUuid, receiver.context);
+        new RestControlsAccessory(device, receiver, available, () => {
+          try {
+            receiverState.save(receiverUuid, receiver.context);
+          } catch {
+            this.log.error(
+              "Unable to save receiver settings in Homebridge storage.",
+            );
+          }
+        });
+        api.publishExternalAccessories(pluginName, [receiver]);
         this.log.info(
           `Full controls: ${device.name}; ${available.length} named sounds`,
         );
-      } else if (device instanceof Restore || device instanceof RestIot) {
+        return;
+      }
+      const homebridgeAccessory =
+        cached ||
+        new api.platformAccessory(displayName, uuid, hap.Categories.LIGHTBULB);
+      if (!cached) {
+        platformAccessories.push(homebridgeAccessory);
+        this.log.info(`Adding new Hatch ${device.model} - ${displayName}`);
+      }
+      if (device instanceof Restore || device instanceof RestIot) {
         new RestoreAccessory(device, homebridgeAccessory);
       } else if ("onBrightness" in device) {
         new LightAndSoundMachineAccessory(device, homebridgeAccessory);

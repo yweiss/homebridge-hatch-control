@@ -159,7 +159,7 @@ describe("Rest 2 controls", () => {
     update.mockRejectedValueOnce(new Error("Not authorized"));
     await expect(controls.setVolume(20)).rejects.toThrow("Not authorized");
   });
-  it("creates distinct power, volume, color and named sound services without duplicating them after restart", async () => {
+  it("creates receiver, volume and color services and coalesces color edits", async () => {
     const { device, update } = mockDevice();
     const accessory = new PlatformAccessory(
       "Nursery Rest",
@@ -167,9 +167,8 @@ describe("Rest 2 controls", () => {
     );
     const warnings = vi.fn();
     accessory._associatedHAPAccessory.on("characteristic-warning", warnings);
-    const power = accessory.addService(hap.Service.Switch, "Nursery Rest");
     new RestControlsAccessory(device, accessory, [ocean]);
-    expect(accessory.getService(hap.Service.Switch)).toBe(power);
+    expect(accessory.getService(hap.Service.Television)).toBeTruthy();
     expect(
       accessory.getServiceById(hap.Service.Lightbulb, "light"),
     ).toBeTruthy();
@@ -180,12 +179,6 @@ describe("Rest 2 controls", () => {
     expect(update).toHaveBeenLastCalledWith({
       current: { sound: { v: 16384 } },
     });
-    expect(
-      accessory.getServiceById(hap.Service.Switch, "sound:10138").displayName,
-    ).toBe("Nursery Rest Ocean");
-    const count = accessory.services.length;
-    new RestControlsAccessory(device, accessory, [ocean]);
-    expect(accessory.services.length).toBe(count);
     expect(warnings).not.toHaveBeenCalled();
     const light = accessory.getServiceById(hap.Service.Lightbulb, "light");
     await Promise.all([
@@ -221,13 +214,13 @@ describe("Rest 2 controls", () => {
     const { device, subject, update } = mockDevice();
     const rain = { ...ocean, id: 10139, name: "Rain" };
     const accessory = new PlatformAccessory(
-      "Rest Preview",
+      "Nursery Rest",
       hap.uuid.generate("receiver-test"),
       hap.Categories.AUDIO_RECEIVER,
     );
     const warnings = vi.fn();
     accessory._associatedHAPAccessory.on("characteristic-warning", warnings);
-    new RestControlsAccessory(device, accessory, [ocean, rain], "receiver");
+    new RestControlsAccessory(device, accessory, [ocean, rain]);
     expect(warnings).not.toHaveBeenCalled();
     expect(
       accessory.services.filter((s) => s.UUID === hap.Service.Switch.UUID),
@@ -276,10 +269,10 @@ describe("Rest 2 controls", () => {
   it("supports receiver volume controls without resetting sound or light", async () => {
     const { device, update } = mockDevice();
     const accessory = new PlatformAccessory(
-      "Rest Preview",
+      "Nursery Rest",
       hap.uuid.generate("receiver-volume"),
     );
-    new RestControlsAccessory(device, accessory, [ocean], "receiver");
+    new RestControlsAccessory(device, accessory, [ocean]);
     const speaker = accessory.getService(hap.Service.TelevisionSpeaker);
     await speaker
       .getCharacteristic(hap.Characteristic.Volume)
@@ -302,11 +295,11 @@ describe("Rest 2 controls", () => {
     const saved = vi.fn();
     function create() {
       const accessory = new PlatformAccessory(
-        "Rest Preview",
+        "Nursery Rest",
         hap.uuid.generate("names-test"),
       );
       accessory.context.receiverNames = names;
-      new RestControlsAccessory(device, accessory, [ocean], "receiver", saved);
+      new RestControlsAccessory(device, accessory, [ocean], saved);
       return accessory;
     }
     const accessory = create();
@@ -316,7 +309,7 @@ describe("Rest 2 controls", () => {
         .getService(hap.Service.AccessoryInformation)
         .getCharacteristic(C.ConfiguredName)
         .handleGetRequest(),
-    ).toBe("Rest Preview");
+    ).toBe("Nursery Rest");
     const name = accessory
       .getServiceById(hap.Service.InputSource, "input:10138")
       .getCharacteristic(C.ConfiguredName);

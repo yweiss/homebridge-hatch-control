@@ -34,14 +34,13 @@ export class RestControlsAccessory extends BaseAccessory {
     device: RestIot,
     accessory: PlatformAccessory,
     sounds: HatchSound[],
-    layout: "switches" | "receiver" = "switches",
     saveNames: () => void = () => {},
   ) {
     super(device, accessory);
     this.saveNames = saveNames;
     this.controls = new RestControls(device, sounds);
     const { Service, Characteristic } = hap;
-    const prefix = (layout === "receiver" ? accessory.displayName : device.name)
+    const prefix = accessory.displayName
       .replace(/[^\p{L}\p{N} ']/gu, " ")
       .replace(/\s+/g, " ")
       .trim();
@@ -63,31 +62,14 @@ export class RestControlsAccessory extends BaseAccessory {
       );
       if (!result.testCharacteristic(Characteristic.ConfiguredName))
         result.addOptionalCharacteristic(Characteristic.ConfiguredName);
-      if (layout === "receiver") {
-        this.configureReceiverName(
-          result,
-          subtype || "receiver",
-          `${prefix} ${suffix}`.trim(),
-        );
-      } else {
-        result.setCharacteristic(
-          Characteristic.ConfiguredName,
-          `${prefix} ${suffix}`.trim(),
-        );
-      }
+      this.configureReceiverName(
+        result,
+        subtype || "receiver",
+        `${prefix} ${suffix}`.trim(),
+      );
       return result;
     };
-    if (layout === "receiver") {
-      this.addReceiver(device, accessory, sounds);
-    } else {
-      const power = service(Service.Switch, "");
-      power.setPrimaryService(true);
-      this.bind(
-        power.getCharacteristic(Characteristic.On),
-        device.onState.pipe(map((s) => s.current.playing !== "none")),
-        (value) => this.controls.setPower(Boolean(value)),
-      );
-    }
+    this.addReceiver(device, accessory, sounds);
 
     const volume = service(Service.Fan, "Volume", "volume");
     this.bind(
@@ -133,23 +115,6 @@ export class RestControlsAccessory extends BaseAccessory {
       ),
       (value) => this.setColor({ s: Number(value) }),
     );
-
-    const buttons = layout === "receiver" ? [] : sounds;
-    const active = new Set(buttons.map((sound) => `sound:${sound.id}`));
-    for (const old of [...accessory.services]) {
-      if (old.subtype?.startsWith("sound:") && !active.has(old.subtype))
-        accessory.removeService(old);
-    }
-    for (const sound of buttons) {
-      const button = service(Service.Switch, sound.name, `sound:${sound.id}`);
-      this.bind(
-        button.getCharacteristic(Characteristic.On),
-        device.onState.pipe(
-          map((s) => soundOn(s) && s.current.sound.id === sound.id),
-        ),
-        (value) => this.controls.setTrack(sound.id, Boolean(value)),
-      );
-    }
   }
 
   private addReceiver(
@@ -343,7 +308,10 @@ export class RestControlsAccessory extends BaseAccessory {
       } as HsbColor;
       this.controls.setLight(color).then(
         () => {
-          if (color.b > 0) this.accessory.context.restColor = color;
+          if (color.b > 0) {
+            this.accessory.context.restColor = color;
+            this.saveNames();
+          }
           waiters.forEach((waiter) => waiter.resolve());
         },
         (error) => waiters.forEach((waiter) => waiter.reject(error)),

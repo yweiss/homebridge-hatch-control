@@ -18,17 +18,11 @@
       },
       "soundIds": {
         "title": "Sound IDs to expose (optional)",
-        "description": "Omit this option to expose every basic sound. An empty array hides all named sound buttons.",
+        "description": "Omit to include every basic sound in the receiver sound picker. An empty array hides catalog sounds.",
         "type": "array",
         "items": {
           "type": "integer"
         }
-      },
-      "receiverPreview": {
-        "title": "Receiver layout preview",
-        "type": "boolean",
-        "default": false,
-        "description": "Adds one separately paired preview with a sound picker, volume, and light. Keeps the original accessory for rollback."
       }
     }
   }

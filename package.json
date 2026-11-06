@@ -1,6 +1,6 @@
 {
   "name": "homebridge-hatch-rest-control",
-  "version": "0.2.0-preview.2",
+  "version": "0.2.0",
   "description": "Homebridge controls for Hatch Rest: power, named sounds, volume, brightness and color",
   "type": "module",
   "main": "lib/devices/index.js",

@@ -5,3 +5,11 @@ lib/
 .homebridge/
 coverage/
 .DS_Store
+
+config.json
+.npmrc
+*.log
+backups/
+persist/
+accessories/
+diagnostics/
