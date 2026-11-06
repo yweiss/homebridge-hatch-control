@@ -10,6 +10,8 @@ Prepared locally. Publication remains on hold; no verification request has been 
 - Yoav Weiss author credit and retained upstream MIT/attribution notices.
 - GitHub release notes and Homebridge verification request draft.
 - 36 tests pass on Node 22, 24 and 26. TypeScript build passes.
+- Version 0.2.0 installed on the test Homebridge host and restarted successfully. Logs confirm 10 named sounds and removal of the old bridged switch accessory; receiver advertising identity is retained. Final Home app interaction remains a user check.
+- Audited tarball SHA-256: `cc366eefdd14bf50600d66c2cc1a59211e179c5908bef59824137619501909f2`.
 - Clean temporary package install and Homebridge platform registration smoke test pass.
 - npm package allowlist verified: compiled code, metadata, schema and documentation only.
 - Known private identifiers and credential-pattern scan passes for working source, all reachable local Git history, final package, receiver preview packages and downloaded public v0.1.0/v0.1.1 release archives. This targeted audit is not a guarantee against every possible secret format.
