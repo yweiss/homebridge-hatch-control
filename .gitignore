@@ -1,0 +1,7 @@
+node_modules/
+lib/
+*.tgz
+.env*
+.homebridge/
+coverage/
+.DS_Store

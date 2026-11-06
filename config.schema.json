@@ -1,0 +1,29 @@
+{
+  "pluginAlias": "HatchRestControl",
+  "pluginType": "platform",
+  "name": "Hatch Rest Control",
+  "headerDisplay": "Power, volume, named sounds and color controls for Hatch Rest. Use your Hatch account login.",
+  "schema": {
+    "type": "object",
+    "properties": {
+      "email": {
+        "title": "Hatch email",
+        "type": "string",
+        "required": true
+      },
+      "password": {
+        "title": "Hatch password",
+        "type": "string",
+        "required": true
+      },
+      "soundIds": {
+        "title": "Sound IDs to expose (optional)",
+        "description": "Omit this option to expose every basic sound. An empty array hides all named sound buttons.",
+        "type": "array",
+        "items": {
+          "type": "integer"
+        }
+      }
+    }
+  }
+}
