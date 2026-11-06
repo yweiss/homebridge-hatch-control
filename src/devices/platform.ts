@@ -203,7 +203,17 @@ export class HatchBabyRestPlatform implements DynamicPlatformPlugin {
             hap.uuid.generate("hatch-rest-receiver-preview:" + id),
             hap.Categories.AUDIO_RECEIVER,
           );
-          new RestControlsAccessory(device, preview, available, "receiver");
+          preview.context.receiverNames =
+            homebridgeAccessory.context.receiverNames ||= {};
+          new RestControlsAccessory(
+            device,
+            preview,
+            available,
+            "receiver",
+            () => {
+              api.updatePlatformAccessories([homebridgeAccessory]);
+            },
+          );
           api.publishExternalAccessories(pluginName, [preview]);
           this.log.info(
             "Receiver preview published; pair the Preview accessory in Apple Home using this child bridge's setup code.",

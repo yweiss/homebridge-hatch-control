@@ -296,4 +296,43 @@ describe("Rest 2 controls", () => {
       current: { sound: { mute: true } },
     });
   });
+  it("supplies catalog input names, rejects pairing placeholders, and retains user renames", async () => {
+    const { device } = mockDevice();
+    const names: Record<string, string> = {};
+    const saved = vi.fn();
+    function create() {
+      const accessory = new PlatformAccessory(
+        "Rest Preview",
+        hap.uuid.generate("names-test"),
+      );
+      accessory.context.receiverNames = names;
+      new RestControlsAccessory(device, accessory, [ocean], "receiver", saved);
+      return accessory;
+    }
+    const accessory = create();
+    const C = hap.Characteristic;
+    expect(
+      await accessory
+        .getService(hap.Service.AccessoryInformation)
+        .getCharacteristic(C.ConfiguredName)
+        .handleGetRequest(),
+    ).toBe("Rest Preview");
+    const name = accessory
+      .getServiceById(hap.Service.InputSource, "input:10138")
+      .getCharacteristic(C.ConfiguredName);
+    expect(await name.handleGetRequest()).toBe("Ocean");
+    await name.handleSetRequest("Input Source 3");
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(name.value).toBe("Ocean");
+    expect(saved).not.toHaveBeenCalled();
+    await name.handleSetRequest("Bedtime Waves");
+    expect(saved).toHaveBeenCalledOnce();
+    const restarted = create()
+      .getServiceById(hap.Service.InputSource, "input:10138")
+      .getCharacteristic(C.ConfiguredName);
+    expect(await restarted.handleGetRequest()).toBe("Bedtime Waves");
+    await restarted.handleSetRequest("Input Source");
+    await new Promise((resolve) => setImmediate(resolve));
+    expect(restarted.value).toBe("Bedtime Waves");
+  });
 });

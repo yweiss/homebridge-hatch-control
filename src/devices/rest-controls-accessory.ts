@@ -22,6 +22,7 @@ import {
 
 export class RestControlsAccessory extends BaseAccessory {
   readonly controls: RestControls;
+  private readonly saveNames: () => void;
   private readonly pendingColor: Partial<HsbColor> = {};
   private colorTimer?: NodeJS.Timeout;
   private colorWaiters: {
@@ -34,8 +35,10 @@ export class RestControlsAccessory extends BaseAccessory {
     accessory: PlatformAccessory,
     sounds: HatchSound[],
     layout: "switches" | "receiver" = "switches",
+    saveNames: () => void = () => {},
   ) {
     super(device, accessory);
+    this.saveNames = saveNames;
     this.controls = new RestControls(device, sounds);
     const { Service, Characteristic } = hap;
     const prefix = (layout === "receiver" ? accessory.displayName : device.name)
@@ -60,10 +63,18 @@ export class RestControlsAccessory extends BaseAccessory {
       );
       if (!result.testCharacteristic(Characteristic.ConfiguredName))
         result.addOptionalCharacteristic(Characteristic.ConfiguredName);
-      result.setCharacteristic(
-        Characteristic.ConfiguredName,
-        `${prefix} ${suffix}`.trim(),
-      );
+      if (layout === "receiver") {
+        this.configureReceiverName(
+          result,
+          subtype || "receiver",
+          `${prefix} ${suffix}`.trim(),
+        );
+      } else {
+        result.setCharacteristic(
+          Characteristic.ConfiguredName,
+          `${prefix} ${suffix}`.trim(),
+        );
+      }
       return result;
     };
     if (layout === "receiver") {
@@ -149,10 +160,15 @@ export class RestControlsAccessory extends BaseAccessory {
     const { Service, Characteristic: C } = hap;
     const tv = accessory.addService(Service.Television, "Sound", "receiver");
     tv.setPrimaryService(true);
-    tv.setCharacteristic(C.ConfiguredName, accessory.displayName);
+    this.configureReceiverName(tv, "receiver", accessory.displayName);
     accessory
       .getService(Service.AccessoryInformation)!
       .setCharacteristic(C.Name, accessory.displayName);
+    this.configureReceiverName(
+      accessory.getService(Service.AccessoryInformation)!,
+      "receiver",
+      accessory.displayName,
+    );
     tv.setCharacteristic(
       C.SleepDiscoveryMode,
       C.SleepDiscoveryMode.ALWAYS_DISCOVERABLE,
@@ -188,13 +204,13 @@ export class RestControlsAccessory extends BaseAccessory {
       );
       input
         .setCharacteristic(C.Identifier, sound.id)
-        .setCharacteristic(C.ConfiguredName, sound.name)
         .setCharacteristic(C.IsConfigured, C.IsConfigured.CONFIGURED)
         .setCharacteristic(C.InputSourceType, C.InputSourceType.APPLICATION)
         .setCharacteristic(
           C.CurrentVisibilityState,
           C.CurrentVisibilityState.SHOWN,
         );
+      this.configureReceiverName(input, `input:${sound.id}`, sound.name);
       tv.addLinkedService(input);
     }
     // DisplayOrder controls the sound menu only. Apple chooses the order of
@@ -262,6 +278,36 @@ export class RestControlsAccessory extends BaseAccessory {
           sounds.length;
         await this.controls.setTrack(sounds[next].id, true);
       }
+    });
+  }
+
+  private configureReceiverName(
+    service: Service,
+    key: string,
+    defaultName: string,
+  ) {
+    const C = hap.Characteristic;
+    if (!service.testCharacteristic(C.ConfiguredName))
+      service.addOptionalCharacteristic(C.ConfiguredName);
+    const names: Record<string, string> =
+      (this.accessory.context.receiverNames ||= {});
+    const characteristic = service.getCharacteristic(C.ConfiguredName);
+    const generic = (name: string) =>
+      key.startsWith("input:") && /^input(?: source)?(?: \d+)?$/i.test(name);
+    if (names[key] && generic(names[key])) delete names[key];
+    const getName = () => names[key] || defaultName;
+    characteristic.updateValue(getName());
+    characteristic.onGet(getName);
+    characteristic.onSet((value) => {
+      const name = String(value).trim();
+      if (!name || generic(name)) {
+        // Home can overwrite the catalog names with generic input labels
+        // during pairing. Restore after HAP finishes accepting this write.
+        setImmediate(() => characteristic.updateValue(getName()));
+        return;
+      }
+      names[key] = name;
+      this.saveNames();
     });
   }
 
