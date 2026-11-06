@@ -33,11 +33,12 @@ export class RestControlsAccessory extends BaseAccessory {
     device: RestIot,
     accessory: PlatformAccessory,
     sounds: HatchSound[],
+    layout: "switches" | "receiver" = "switches",
   ) {
     super(device, accessory);
     this.controls = new RestControls(device, sounds);
     const { Service, Characteristic } = hap;
-    const prefix = device.name
+    const prefix = (layout === "receiver" ? accessory.displayName : device.name)
       .replace(/[^\p{L}\p{N} ']/gu, " ")
       .replace(/\s+/g, " ")
       .trim();
@@ -65,13 +66,17 @@ export class RestControlsAccessory extends BaseAccessory {
       );
       return result;
     };
-    const power = service(Service.Switch, "");
-    power.setPrimaryService(true);
-    this.bind(
-      power.getCharacteristic(Characteristic.On),
-      device.onState.pipe(map((s) => s.current.playing !== "none")),
-      (value) => this.controls.setPower(Boolean(value)),
-    );
+    if (layout === "receiver") {
+      this.addReceiver(device, accessory, sounds);
+    } else {
+      const power = service(Service.Switch, "");
+      power.setPrimaryService(true);
+      this.bind(
+        power.getCharacteristic(Characteristic.On),
+        device.onState.pipe(map((s) => s.current.playing !== "none")),
+        (value) => this.controls.setPower(Boolean(value)),
+      );
+    }
 
     const volume = service(Service.Fan, "Volume", "volume");
     this.bind(
@@ -118,12 +123,13 @@ export class RestControlsAccessory extends BaseAccessory {
       (value) => this.setColor({ s: Number(value) }),
     );
 
-    const active = new Set(sounds.map((sound) => `sound:${sound.id}`));
+    const buttons = layout === "receiver" ? [] : sounds;
+    const active = new Set(buttons.map((sound) => `sound:${sound.id}`));
     for (const old of [...accessory.services]) {
       if (old.subtype?.startsWith("sound:") && !active.has(old.subtype))
         accessory.removeService(old);
     }
-    for (const sound of sounds) {
+    for (const sound of buttons) {
       const button = service(Service.Switch, sound.name, `sound:${sound.id}`);
       this.bind(
         button.getCharacteristic(Characteristic.On),
@@ -133,6 +139,130 @@ export class RestControlsAccessory extends BaseAccessory {
         (value) => this.controls.setTrack(sound.id, Boolean(value)),
       );
     }
+  }
+
+  private addReceiver(
+    device: RestIot,
+    accessory: PlatformAccessory,
+    sounds: HatchSound[],
+  ) {
+    const { Service, Characteristic: C } = hap;
+    const tv = accessory.addService(Service.Television, "Sound", "receiver");
+    tv.setPrimaryService(true);
+    tv.setCharacteristic(C.ConfiguredName, accessory.displayName);
+    accessory
+      .getService(Service.AccessoryInformation)!
+      .setCharacteristic(C.Name, accessory.displayName);
+    tv.setCharacteristic(
+      C.SleepDiscoveryMode,
+      C.SleepDiscoveryMode.ALWAYS_DISCOVERABLE,
+    );
+    this.bind(
+      tv.getCharacteristic(C.Active),
+      device.onState.pipe(map((s) => Number(s.current.playing !== "none"))),
+      (value) => this.controls.setPower(Boolean(value)),
+    );
+    // Identifier zero explicitly represents an off, muted or non-catalog sound.
+    // HomeKit has one ActiveIdentifier, so sounds cannot appear simultaneously selected.
+    this.bind(
+      tv.getCharacteristic(C.ActiveIdentifier),
+      device.onState.pipe(
+        map((s) =>
+          soundOn(s) && sounds.some((sound) => sound.id === s.current.sound.id)
+            ? s.current.sound.id
+            : 0,
+        ),
+      ),
+      async (value) => {
+        const id = Number(value);
+        if (id === 0) await this.controls.setSound(false);
+        else await this.controls.setTrack(id, true);
+      },
+    );
+    const inputs = [{ id: 0, name: "Off / Other" }, ...sounds];
+    for (const sound of inputs) {
+      const input = accessory.addService(
+        Service.InputSource,
+        sound.name,
+        `input:${sound.id}`,
+      );
+      input
+        .setCharacteristic(C.Identifier, sound.id)
+        .setCharacteristic(C.ConfiguredName, sound.name)
+        .setCharacteristic(C.IsConfigured, C.IsConfigured.CONFIGURED)
+        .setCharacteristic(C.InputSourceType, C.InputSourceType.APPLICATION)
+        .setCharacteristic(
+          C.CurrentVisibilityState,
+          C.CurrentVisibilityState.SHOWN,
+        );
+      tv.addLinkedService(input);
+    }
+    // DisplayOrder controls the sound menu only. Apple chooses the order of
+    // the visible receiver, volume and light panels.
+    tv.setCharacteristic(
+      C.DisplayOrder,
+      Buffer.concat(
+        inputs.flatMap((input, index) => {
+          const item = Buffer.alloc(6);
+          item[0] = 1;
+          item[1] = 4;
+          item.writeUInt32LE(input.id, 2);
+          return index ? [Buffer.from([0, 0]), item] : [item];
+        }),
+      ).toString("base64"),
+    );
+    const speaker = accessory.addService(
+      Service.TelevisionSpeaker,
+      "Audio",
+      "speaker",
+    );
+    speaker
+      .setCharacteristic(C.Active, C.Active.ACTIVE)
+      .setCharacteristic(C.VolumeControlType, C.VolumeControlType.ABSOLUTE);
+    this.bind(
+      speaker.getCharacteristic(C.Mute),
+      device.onState.pipe(map((s) => !soundOn(s))),
+      (value) => this.controls.setSound(!value),
+    );
+    this.bind(
+      speaker.getCharacteristic(C.Volume),
+      device.onState.pipe(map((s) => percent(s.current.sound.v))),
+      (value) => this.controls.setVolume(Number(value)),
+    );
+    speaker.getCharacteristic(C.VolumeSelector).onSet(async (value) => {
+      const state = await this.controls.state();
+      await this.controls.setVolume(
+        Math.max(
+          0,
+          Math.min(
+            100,
+            percent(state.current.sound.v) +
+              (value === C.VolumeSelector.INCREMENT ? 5 : -5),
+          ),
+        ),
+      );
+    });
+    tv.addLinkedService(speaker);
+    tv.getCharacteristic(C.RemoteKey).onSet(async (value) => {
+      if (value === C.RemoteKey.PLAY_PAUSE) {
+        await this.controls.setSound(!soundOn(await this.controls.state()));
+      } else if (
+        (value === C.RemoteKey.NEXT_TRACK ||
+          value === C.RemoteKey.PREVIOUS_TRACK) &&
+        sounds.length
+      ) {
+        const state = await this.controls.state();
+        const current = sounds.findIndex(
+          (sound) => sound.id === state.current.sound.id,
+        );
+        const next =
+          (Math.max(0, current) +
+            (value === C.RemoteKey.NEXT_TRACK ? 1 : -1) +
+            sounds.length) %
+          sounds.length;
+        await this.controls.setTrack(sounds[next].id, true);
+      }
+    });
   }
 
   private bind(

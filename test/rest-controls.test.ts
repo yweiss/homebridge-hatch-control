@@ -217,4 +217,83 @@ describe("Rest 2 controls", () => {
       },
     });
   });
+  it("offers one receiver sound selection with ordered inputs and no track switches", async () => {
+    const { device, subject, update } = mockDevice();
+    const rain = { ...ocean, id: 10139, name: "Rain" };
+    const accessory = new PlatformAccessory(
+      "Rest Preview",
+      hap.uuid.generate("receiver-test"),
+      hap.Categories.AUDIO_RECEIVER,
+    );
+    const warnings = vi.fn();
+    accessory._associatedHAPAccessory.on("characteristic-warning", warnings);
+    new RestControlsAccessory(device, accessory, [ocean, rain], "receiver");
+    expect(warnings).not.toHaveBeenCalled();
+    expect(
+      accessory.services.filter((s) => s.UUID === hap.Service.Switch.UUID),
+    ).toHaveLength(0);
+    const tv = accessory.getService(hap.Service.Television);
+    expect(tv.isPrimaryService).toBe(true);
+    const input = tv.getCharacteristic(hap.Characteristic.ActiveIdentifier);
+    await input.handleSetRequest(ocean.id);
+    expect(update).toHaveBeenLastCalledWith(trackChange(ocean));
+    await input.handleSetRequest(rain.id);
+    expect(update).toHaveBeenLastCalledWith(trackChange(rain));
+    subject.next({
+      ...state(),
+      current: {
+        ...state().current,
+        playing: "remote",
+        sound: { ...state().current.sound, id: rain.id },
+      },
+    });
+    expect(await input.handleGetRequest()).toBe(rain.id);
+    await input.handleSetRequest(0);
+    expect(update).toHaveBeenLastCalledWith({
+      current: { sound: { mute: true } },
+    });
+    await expect(input.handleSetRequest(999)).rejects.toBeDefined();
+    const visible = accessory.services.filter((s) =>
+      [
+        hap.Service.Television.UUID,
+        hap.Service.Fan.UUID,
+        hap.Service.Lightbulb.UUID,
+      ].includes(s.UUID),
+    );
+    expect(visible.map((s) => s.UUID)).toEqual([
+      hap.Service.Television.UUID,
+      hap.Service.Fan.UUID,
+      hap.Service.Lightbulb.UUID,
+    ]);
+    const order = Buffer.from(
+      tv.getCharacteristic(hap.Characteristic.DisplayOrder).value,
+      "base64",
+    );
+    expect(order.readUInt32LE(2)).toBe(0);
+    expect(order.readUInt32LE(10)).toBe(ocean.id);
+    expect(order.readUInt32LE(18)).toBe(rain.id);
+  });
+  it("supports receiver volume controls without resetting sound or light", async () => {
+    const { device, update } = mockDevice();
+    const accessory = new PlatformAccessory(
+      "Rest Preview",
+      hap.uuid.generate("receiver-volume"),
+    );
+    new RestControlsAccessory(device, accessory, [ocean], "receiver");
+    const speaker = accessory.getService(hap.Service.TelevisionSpeaker);
+    await speaker
+      .getCharacteristic(hap.Characteristic.Volume)
+      .handleSetRequest(20);
+    expect(update).toHaveBeenLastCalledWith(volumeChange(20));
+    await speaker
+      .getCharacteristic(hap.Characteristic.VolumeSelector)
+      .handleSetRequest(hap.Characteristic.VolumeSelector.INCREMENT);
+    expect(update).toHaveBeenLastCalledWith(volumeChange(22));
+    await speaker
+      .getCharacteristic(hap.Characteristic.Mute)
+      .handleSetRequest(true);
+    expect(update).toHaveBeenLastCalledWith({
+      current: { sound: { mute: true } },
+    });
+  });
 });

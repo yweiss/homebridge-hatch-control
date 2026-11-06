@@ -23,6 +23,12 @@
         "items": {
           "type": "integer"
         }
+      },
+      "receiverPreview": {
+        "title": "Receiver layout preview",
+        "type": "boolean",
+        "default": false,
+        "description": "Adds one separately paired preview with a sound picker, volume, and light. Keeps the original accessory for rollback."
       }
     }
   }

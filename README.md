@@ -1,3 +1,5 @@
+> Local receiver-layout preview. Not published to npm. Set `receiverPreview: true` to add a separately paired audio receiver named “Preview” with one sound picker, a volume slider, and a color light. The existing switch accessory remains available for comparison and rollback. Apple controls panel layout; service creation order is receiver, volume, light. Sound input order is supplied explicitly. Disable the option and restart to stop advertising the preview. Remove only the Preview accessory from Home afterward.
+
 # Hatch Rest Control
 
 One Homebridge plugin for Hatch Rest power, sound selection, volume, brightness, and color. Authored and maintained by **Yoav Weiss**.

@@ -23,6 +23,7 @@ import { IotClientLifecycle } from './iot-client-lifecycle.ts'
 export interface ApiConfig extends EmailAuth {
   debug?: boolean
   soundIds?: number[]
+  receiverPreview?: boolean
 }
 
 const knownProducts: Product[] = [
