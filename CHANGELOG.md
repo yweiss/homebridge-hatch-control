@@ -1,5 +1,9 @@
 # Changelog
 
+## 0.1.1
+
+- Register configured service names explicitly to avoid Homebridge startup warnings.
+
 ## 0.1.0
 
 - Consolidated Hatch Rest plugin authored by Yoav Weiss, based on dgreif's integration.

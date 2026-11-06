@@ -57,6 +57,8 @@ export class RestControlsAccessory extends BaseAccessory {
         Characteristic.Name,
         `${prefix} ${suffix}`.trim(),
       );
+      if (!result.testCharacteristic(Characteristic.ConfiguredName))
+        result.addOptionalCharacteristic(Characteristic.ConfiguredName);
       result.setCharacteristic(
         Characteristic.ConfiguredName,
         `${prefix} ${suffix}`.trim(),

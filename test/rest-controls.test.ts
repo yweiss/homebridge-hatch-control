@@ -165,6 +165,8 @@ describe("Rest 2 controls", () => {
       "Nursery Rest",
       hap.uuid.generate("test-rest"),
     );
+    const warnings = vi.fn();
+    accessory._associatedHAPAccessory.on("characteristic-warning", warnings);
     const power = accessory.addService(hap.Service.Switch, "Nursery Rest");
     new RestControlsAccessory(device, accessory, [ocean]);
     expect(accessory.getService(hap.Service.Switch)).toBe(power);
@@ -184,6 +186,7 @@ describe("Rest 2 controls", () => {
     const count = accessory.services.length;
     new RestControlsAccessory(device, accessory, [ocean]);
     expect(accessory.services.length).toBe(count);
+    expect(warnings).not.toHaveBeenCalled();
     const light = accessory.getServiceById(hap.Service.Lightbulb, "light");
     await Promise.all([
       light.getCharacteristic(hap.Characteristic.Hue).handleSetRequest(120),
