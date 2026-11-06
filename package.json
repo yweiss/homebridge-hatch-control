@@ -1,6 +1,6 @@
 {
   "name": "homebridge-hatch-control",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "description": "Homebridge receiver controls for Hatch Rest, Rest+, Rest Mini and Restore routines",
   "type": "module",
   "main": "lib/devices/index.js",
