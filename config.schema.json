@@ -5,16 +5,20 @@
   "headerDisplay": "Receiver controls for Hatch Rest, Rest+ and Mini; routine receivers for Restore/Baby. Controls vary by model. Use your Hatch account login.",
   "schema": {
     "type": "object",
+    "required": ["email", "password"],
     "properties": {
+      "name": {
+        "title": "Name",
+        "type": "string",
+        "default": "Hatch Control"
+      },
       "email": {
         "title": "Hatch email",
-        "type": "string",
-        "required": true
+        "type": "string"
       },
       "password": {
         "title": "Hatch password",
         "type": "string",
-        "required": true,
         "format": "password"
       },
       "soundIds": {

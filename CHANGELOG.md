@@ -1,5 +1,10 @@
 # Changelog
 
+## 0.3.2
+
+- Declare HomeKit transport support for Homebridge discovery.
+- Correct the settings schema and add the plugin name field for Homebridge verification.
+
 ## 0.3.1
 
 - Simplified first-time setup and troubleshooting documentation.

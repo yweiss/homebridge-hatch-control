@@ -1,6 +1,6 @@
 {
   "name": "homebridge-hatch-control",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "Homebridge receiver controls for Hatch Rest, Rest+, Rest Mini and Restore routines",
   "type": "module",
   "main": "lib/devices/index.js",
@@ -16,6 +16,7 @@
   },
   "keywords": [
     "homebridge-plugin",
+    "supports-hap",
     "hatch",
     "rest",
     "rest2",
